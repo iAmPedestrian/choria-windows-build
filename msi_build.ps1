@@ -2,16 +2,21 @@ Write-Host "`nBuilding MSI"
 
 # Directory for the MSI build
 $msiFolder = "msibuild"
+If (Test-Path $msiFolder) {
+    Write-Host "Found old MSI build folder. Deleting...`n"
+    Remove-Item $msiFolder -Recurse -Force
+}
+
 Write-Host "`nCreating '$msiFolder' directory"
 New-Item -Name $msiFolder -ItemType Directory | Out-Null
 
-Write-Host "Move created binary `'$outputName`' to `'$msiFolder`' directory"
+Write-Host "Move created binary '$outputName' to '$msiFolder' directory"
 Move-Item -Path "$repoName\*.exe" -Destination $msiFolder
 
-Write-Host "Copy packager template to `'$msiFolder`' directory"
+Write-Host "Copy packager template to '$msiFolder' directory"
 Copy-Item -Path "$repoName\packager\templates\windows\global\*" -Destination $msiFolder -Recurse
 
-cd $msiFolder
+Set-Location $msiFolder
 
 Write-Host "`nReplacing placeholders for WIX"
 $cpkg_display_name = 'Choria Orchestrator'
@@ -43,4 +48,4 @@ Write-Host "`nCreating MSI"
 $msi = ".\package.bat"
 Invoke-Expression $msi
 
-cd ..
+Set-Location ..

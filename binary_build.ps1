@@ -1,6 +1,11 @@
 # Name of the main choria repository
 $repoName = "go-choria"
 
+If (Test-Path $repoName) {
+    Write-Host "Found old repository folder. Deleting...`n"
+    Remove-Item $repoName -Recurse -Force
+}
+
 Write-Host "Finding latest version"
 $versionLink = "https://github.com/choria-io/$repoName/releases/latest"
 $vResponse = Invoke-Webrequest -Uri $versionLink -UseBasicParsing
@@ -33,14 +38,9 @@ else {
 
 # commands for cloning choria repo
 $clone = "git clone https://github.com/choria-io/$repoName.git"
-$cd = "cd $repoName"
 
-Write-Host "`nCloning repo: (command: $clone)"
+Write-Host "`nCloning repository"
 Invoke-Expression $clone
-
-# Write-Host "`nChanging directory to the repo: (command: $cd)"
-# Invoke-Expression $cd
-
 
 # setting environment variables needed for generate
 Write-Host "`nSetting ENV variables: GOOS=windows and GOARCH=amd64"
@@ -69,7 +69,7 @@ $generate = "go generate -C $repoName --run plugin"
 $build = "go build -C $repoName -o $outputName -trimpath -buildvcs=false -ldflags=`"-X `'$ldVersion`' -X `'$ldSHA`' -X `'$ldbuildDate`' -X `'$ldJWT`'`""
 
 
-Write-Host "`nGenerating plugins: (command: $generate)"
+Write-Host "`nGenerating plugins:"
 Invoke-Expression $generate
 
 Write-Host "`nBuilding binary: (command: $build)"
