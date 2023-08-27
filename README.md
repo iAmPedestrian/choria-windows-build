@@ -6,7 +6,6 @@ For anyone who can't use Docker to create the Windows Choria binary and MSI. Cho
 
 For a successful build, you need to have these tools installed:
 
-- Git - to clone the repo
 - GoLang - to build the binary
 - WixTools - to build the MSI, tested on versions `3.11.2.4516`
 
