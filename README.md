@@ -1,21 +1,20 @@
 # choria-windows-build
+[Choria](https://github.com/choria-io) is an open-source orchestrator tool for Puppet. The code provides the meaning to create the binary for Windows, however, they are not provided anymore with new releases. It uses Docker and Ruby/Rake, but in some cases and some Enterprise environments, it is not possible to use it.
 
-For anyone who can't use Docker to create the Windows [Choria Orchestrator](https://github.com/choria-io/go-choria) binary and MSI. Choria creator doesn't provide the Windows binaries and MSIs for any new version, so I've created the PowerShell script that doesn't use Docker and Ruby/Rake to build the binary.
+For those who can't use Docker to create the Windows binary and MSI, I've created the PowerShell script to create the binary from the source code and the MSI for easier distribution and installation.
 
 ## Prerequisites
-
 For a successful build, you need to have these tools installed:
 
 - GoLang - to build the binary
-- WixTools - to build the MSI, tested on versions `3.11.2.4516`
+- WixTools - to build the MSI, tested on version `3.11.2.4516`
 
 ## Execution
-
-Current version and latest commit hash are stored in the `current_build.json`, which are used to determine if there is any new version.
+The current version and latest commit hash are stored in the `current_build.json`, which are used to determine if there is any new version.
 
 `binary_build.ps1`
 1. Check for the version and latest commit hash if there's a new version to build
-2. If found repository is cloned.
+2. Clone repository if a new version or commit is found
 3. Set environment variables `GOOS=windows` and `GOARCH=amd64`
 4. Create variables and arguments for the correct build
 5. Run `go generate --run plugin` to auto-generate plugins needed for build
