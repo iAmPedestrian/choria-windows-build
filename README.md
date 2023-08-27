@@ -1,6 +1,6 @@
 # choria-windows-build
 
-For anyone who can't use Docker to create the Windows Choria binary and MSI. Choria maintainer doesn't provide the Windows binaries and MSIs for any new version, so I've created the PowerShell script that doesn't use Docker and Ruby/Rake to build the binary.
+For anyone who can't use Docker to create the Windows [Choria Orchestrator](https://github.com/choria-io/go-choria) binary and MSI. Choria creator doesn't provide the Windows binaries and MSIs for any new version, so I've created the PowerShell script that doesn't use Docker and Ruby/Rake to build the binary.
 
 ## Prerequisites
 
