@@ -1,81 +1,127 @@
+param (
+  [Parameter(Mandatory = $false)]
+  [Alias("c")]
+  [switch] $commit,
+
+  [Parameter(Mandatory = $false)]
+  [Alias("r")]
+  [switch] $release,
+
+  [Parameter(Mandatory = $false)]
+  [switch] $msi
+)
+
+if (-not $commit -and -not $release) {
+  Write-Error "Neither '-commit (-c)' nor '-release (-r)' switch were specified. You have to specify one or the other."
+  Exit 1
+}
+
+if ($commit -and $release) {
+  Write-Error "Both '-commit (-c)' and '-release (-r)' switches were specified. You can specify only one."
+  Exit 1
+}
+
+$continue = $false
+
+$api_endpoint = 'https://api.github.com/repos/choria-io/go-choria'
+$gh_endpoint = 'https://www.github.com/repos/choria-io/go-choria'
+$commit_endpoint = 'commits'
+$release_endpoint = 'releases'
+
+$latest_commit = (Invoke-RestMethod "$api_endpoint/$commit_endpoint")[0]
+$latest_release = (Invoke-RestMethod "$api_endpoint/$release_endpoint")[0]
+
 # Name of the main choria repository
 $repoName = "go-choria"
 
-If (Test-Path $repoName) {
-    Write-Output "Found old repository folder. Deleting...`n"
-    Remove-Item $repoName -Recurse -Force
-}
-
-Write-Output "Finding latest version"
-$versionLink = "https://github.com/choria-io/$repoName/releases/latest"
-$vResponse = Invoke-Webrequest -Uri $versionLink -UseBasicParsing
-$vRegex = '<title>.*v(?<version>.*?)\s.*</title>'
-if ($vResponse -match $vRegex) {
-    $version = $matches['version']
-}
-Write-Output "  Version found: $version"
-
-Write-Output "`nFinding latest commit hash"
-$hashLink = "https://github.com/choria-io/go-choria/commits/main"
-$hResponse = Invoke-Webrequest -Uri $hashLink -UseBasicParsing
-$hRegex = 'href="/choria-io/go-choria/commit.*/(?<hash>.*?)" class'
-if ($hResponse -match $hRegex) {
-    $hash = $matches['hash'].Substring(0,7)
-}
-Write-Output "  Hash found: $hash"
-
 # Comparing version and commit SHA to check if there's new version (release) and any new commit
-Write-Output "`nComparing version and latest commit hash"
 $versions = Get-Content '.\current_build.json' | ConvertFrom-Json
 
-if ($versions.version -eq $version -and $versions.sha -eq $hash) {
-    Write-Output "  No new version or commit (GH:$version => C:$($versions.version)) or commit (GH: $hash => C:$($versions.sha)). Exiting..."
+if ($c -or $commit) {
+  Write-Output "Finding latest commit hash"
+  $hash = $latest_commit.sha.Substring(0,7)
+  Write-Output "  Latest hash: $hash`n"
+
+  Write-Output "Comparing latest commit hash"
+  if ($versions.commit_sha -eq $hash) {
+    Write-Output "  No new commit found. Exiting..."
     Exit 0
+  }
+  else {
+    Write-Output "  New commit found.`n"
+    $output_name = $hash
+    $continue = $true
+  }
 }
-else {
-    Write-Output "  Found new version (GH:$version => C:$($versions.version)) or commit (GH:$hash => C:$($versions.sha))"
+elseif ($r -or $release) {
+  Write-Output "Finding latest version"
+  $version = $latest_release.name
+  $version_id = $latest_release.id
+  Write-Output "  Latest version: $version`n  Latest version ID: $version_id`n"
+
+  Write-Output "Comparing latest version"
+  if ($versions.release.id -eq $version_id -and $versions.release.name -eq $version) {
+    Write-Output "  No new version found. Exiting..."
+    Exit 0
+  }
+  else {
+    Write-Output "  New version found.`n"
+    $output_name = $version
+    $continue = $true
+  }
 }
 
-# commands for cloning choria repo
-$clone = "git clone https://github.com/choria-io/$repoName.git"
+if ($continue) {
 
-Write-Output "`nCloning repository"
-Invoke-Expression $clone
+  if (Test-Path $repoName) {
+    Write-Output "Found old repository folder. Deleting...`n"
+    Remove-Item $repoName -Recurse -Force
+  }
 
-# setting environment variables needed for generate
-Write-Output "`nSetting ENV variables: GOOS=windows and GOARCH=amd64"
-$env:GOOS = 'windows'
-$env:GOARCH = 'amd64'
+  # commands for cloning choria repo
+  $clone = "git clone https://github.com/choria-io/$repoName.git"
 
-# information needed for build
-Write-Output "Gathering information for build: SHA, buildDate, JWT location"
-$SHA = git -C $repoName rev-parse --short HEAD
-$buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"    # 2023-08-22 20:04:00 +0000
-$JWT = "C:\ProgramData\Choria\etc\provisioning.jwt"
+  Write-Output "Cloning repository`n"
+  Invoke-Expression $clone
 
-Write-Output "Generating 'go build' command arguments"
-$ldFlags = "github.com/choria-io/$repoName/build"
-$ldVersion = "$ldFlags.Version=$version"
-$ldSHA = "$ldFlags.SHA=$SHA"
-$ldbuildDate = "$ldFlags.BuildDate=$buildDate"
-$ldJWT = "$ldFlags.ProvisionJWTFile=$JWT"
+  # setting environment variables needed for generate
+  Write-Output "`nSetting ENV variables: GOOS=windows and GOARCH=amd64`n"
+  $env:GOOS = 'windows'
+  $env:GOARCH = 'amd64'
 
-$outputName = "choria-$version-$env:GOOS-$env:GOARCH.exe"
+  # information needed for build
+  Write-Output "Gathering information for build: SHA, buildDate, JWT location"
+  $SHA = git -C $repoName rev-parse --short HEAD
+  $buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"    # 2023-08-22 20:04:00 +0000
+  $JWT = "C:\ProgramData\Choria\etc\provisioning.jwt"
 
-Write-Output "`nGenerated output name: $outputName"
+  Write-Output "Generating 'go build' command arguments"
+  $ldFlags = "github.com/choria-io/$repoName/build"
+  $ldVersion = "$ldFlags.Version=$version"
+  $ldSHA = "$ldFlags.SHA=$SHA"
+  $ldbuildDate = "$ldFlags.BuildDate=$buildDate"
+  $ldJWT = "$ldFlags.ProvisionJWTFile=$JWT"
 
-# commands to generate plugins and build the binary
-$generate = "go generate -C $repoName --run plugin"
-$build = "go build -C $repoName -o $outputName -trimpath -buildvcs=false -ldflags=`"-X `'$ldVersion`' -X `'$ldSHA`' -X `'$ldbuildDate`' -X `'$ldJWT`'`""
+  $outputName = "choria-$output_name-$env:GOOS-$env:GOARCH.exe"
 
-Write-Output "`nGenerating plugins:"
-Invoke-Expression $generate
+  Write-Output "Generated output name: $outputName"
 
-Write-Output "`nBuilding binary: (command: $build)"
-Invoke-Expression $build
+  # commands to generate plugins and build the binary
+  $generate = "go generate -C $reponame --run plugin"
+  $build = "go build -C $repoName -o $outputName -trimpath -buildvcs=false -ldflags=`"-X `'$ldVersion`' -X `'$ldSHA`' -X `'$ldbuildDate`' -X `'$ldJWT`'`""
 
-# run MSI build
-.\msi_build.ps1
+  Write-Output "Generating plugins:"
+  Invoke-Expression $generate
+
+  Write-Output "Building binary:"
+  Invoke-Expression $build
+
+}
+
+if ($msi) {
+  # run MSI build
+  .\msi_build.ps1
+}
 
 # if everything is OK write new versions to the json
 Write-Output "Updating new versions in JSON"
