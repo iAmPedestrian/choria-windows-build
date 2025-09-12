@@ -42,18 +42,18 @@ Function Build-Binary {
   $latest_commit = (Invoke-RestMethod "$api_endpoint/$commit_endpoint")[0]
   $latest_release = (Invoke-RestMethod "$api_endpoint/$release_endpoint")[0]
   $commit_hash = $latest_commit.sha
-  $commit_hash_git = $commit_hash.Substring(0,7)
+  $commit_hash_short = $commit_hash.Substring(0,7)
   $commit_date = (Invoke-RestMethod "$api_endpoint/$commit_endpoint/$commit_hash").commit.author.date
   $version = $latest_release.name
   $version_id = $latest_release.id
   $version_date = $latest_release.published_at
 
   Write-Output "Information about Choria Repo:"
-  Write-Output "  Latest commit: $commit_hash"
+  Write-Output "  Latest commit: $commit_hash_short"
   Write-Output "  Latest commit date: $commit_date"
-  Write-Output "  Latest version: $version"
-  Write-Output "  Latest version ID: $version_id"
-  Write-Output "  Latest version date: $version_date"
+  Write-Output "  Latest release: $version"
+  Write-Output "  Latest release ID: $version_id"
+  Write-Output "  Latest release date: $version_date"
 
   # Name of the main choria repository
   $repoName = "go-choria"
@@ -63,13 +63,13 @@ Function Build-Binary {
 
   if ($c -or $commit) {
     Write-Output "Comparing latest commit hash"
-    if ($versions.commit_sha -eq $hash) {
+    if ($versions.commit_sha -eq $commit_hash_short) {
       Write-Output "  No new commit found. Exiting..."
       Exit 0
     }
     else {
       Write-Output "  New commit found.`n"
-      $output_name = $commit_hash
+      $output_name = $commit_hash_short
       $continue = $true
     }
   }
@@ -128,6 +128,7 @@ Function Build-Binary {
     Write-Output "Generated output name: $outputName"
 
     Write-Output "Building binary:"
+    Write-Output "Build commmand: $build"
     Invoke-Expression $build
 
   }
@@ -160,8 +161,13 @@ Function Build-Binary {
   }
   # if everything is OK write new versions to the json
   Write-Output "Updating new versions in JSON"
-  $versions.version = $version
-  $versions.sha = $hash
+  if ($r -or $release) {
+    $versions.release.name = $version
+    $versions.release.id = $version_id
+  }
+  elseif ($c -or $commit) {
+    $versions.commit_sha = $commit_hash_short
+  }
   $versions | ConvertTo-Json | Out-File .\current_build.json
 
 }
